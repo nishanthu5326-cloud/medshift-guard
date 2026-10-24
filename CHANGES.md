@@ -42,3 +42,8 @@ tested against the seeded database and by tests/test_rebalance.py.
 - Removed the weather signal: endpoint /api/signals/weather, the header message and the
   "Weather risk hint" card on the Emergency page. The app no longer makes any external API call,
   so it is fully offline once installed (only the Google font still loads online, with a fallback).
+
+# v5 changes
+- Deleted unused Replit/scaffold files: root main.py, pyproject.toml, uv.lock, .replit, replit.md, scripts/,
+  artifacts/api-server, artifacts/mockup-sandbox, lib/db, lib/api-zod, dist/, *.tsbuildinfo.
+- Side effect: pnpm typecheck and API client regeneration (lib/api-spec) no longer work. Not needed to run the app.
