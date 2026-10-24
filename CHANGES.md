@@ -42,3 +42,58 @@ tested against the seeded database and by tests/test_rebalance.py.
 - Removed the weather signal: endpoint /api/signals/weather, the header message and the
   "Weather risk hint" card on the Emergency page. The app no longer makes any external API call,
   so it is fully offline once installed (only the Google font still loads online, with a fallback).
+
+# v5 changes
+- Deleted unused Replit/scaffold files: root main.py, pyproject.toml, uv.lock, .replit, replit.md, scripts/,
+  artifacts/api-server, artifacts/mockup-sandbox, lib/db, lib/api-zod, dist/, *.tsbuildinfo.
+- Side effect: pnpm typecheck and API client regeneration (lib/api-spec) no longer work. Not needed to run the app.
+
+# v6 changes (risk score, audit trail, approvals)
+
+Risk score (Inventory, Overview, Recommendations)
+- Was 0% almost everywhere because each batch was scored on its own slice of centre stock against the
+  centre's whole demand, and warehouse stock was ignored.
+- Now built from: demand forecast (90-day history, incl. outbreak uplift), day-to-day variation, shelf life,
+  first-expiry-first-out order (earlier batches are used first), stock at every centre AND in the warehouse,
+  and unit price.
+- Each batch shows Expiry risk, Stock-out risk (next 14 days, counted once per medicine on the batch that
+  would be sent out next), expected units/value to expire, and an overall Risk score = the higher of the two.
+- Batch detail lists the reasons, the warehouse position and each centre's cover, expiry and stock-out risk.
+- Recommendations show expiry risk and the receiving centre's stock-out risk before -> after the transfer,
+  and a plain-language reason for every proposed transfer.
+
+Audit trail
+- Shows only approved transfers, rejected transfers and emergency actions (outbreak declared/ended,
+  emergency procurement). Approvals/rejections of emergency transfers carry an Emergency tag.
+- Recommendations, optimiser runs and other system entries are no longer written to the audit log.
+- Filter: All types / Approved / Rejected / Emergency (also applied to the CSV export).
+
+Approvals
+- Approvals were failing after the first few because most centres were already over their storage
+  capacity and the optimiser ignored stock of other medicines when checking room. The error was not
+  shown, so the item just stayed in the queue.
+- Optimiser now plans against each centre's real remaining room (all medicines). Demo centres get
+  capacity above what they hold. Errors are now shown as a message, approved/rejected items leave the
+  queue immediately, and buttons are disabled while a decision is saving.
+- Bulk approve reports anything it could not approve and why.
+
+Demo data
+- Seed now overstocks the short-dated batch at two centres for five medicines, so there is real expiry
+  exposure to find. The shipped medshift.db is freshly seeded (old demo approvals are cleared).
+
+# v7 changes (Database page, day-by-day forecast)
+
+Demand forecast
+- The 30-day forecast was one flat number repeated every day. Each day is now
+  (smoothed level + damped trend) x weekday factor x outbreak uplift for that date.
+  Weekday factors and the trend come from the last 90 days of consumption. The outbreak uplift
+  ramps up at the start of an outbreak and stops on its end date. The band is a 95% range per day.
+- Forecast page shows the weekday pattern, the next-30-days total and trend, and a table of all 30 days.
+- The optimiser and risk scores still use the average daily demand, so their numbers are unchanged.
+
+Database page (new, in the sidebar)
+- Browse every stored table (centres, medicines, batches, centre stock, daily consumption,
+  recommendations, outbreaks, procurement requests, audit log, settings) and the calculated numbers
+  (demand forecast summary, 30-day daily forecast, batch risk scores, centre batch risk, centre distances).
+- Search, page through 100 rows at a time, download any table as CSV, or download every table as CSVs in one zip.
+- API: GET /api/db/tables, GET /api/db/tables/{name}, GET /api/db/tables/{name}/export.csv, GET /api/db/export.zip
